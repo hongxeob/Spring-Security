@@ -17,7 +17,7 @@ public class WebSecurityConfigure {
 
     @Bean
     public InMemoryUserDetailsManager userDetailsService() {
-        UserDetails user = User. builder()
+        UserDetails user = User.builder()
                 .username("user")
                 .password("{noop}user123")
                 .roles("USER").build();
@@ -45,29 +45,35 @@ public class WebSecurityConfigure {
     @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeRequests()
+            .authorizeRequests()
                 .antMatchers("/me").hasAnyRole("USER", "ADMIN")
                 .anyRequest().permitAll()
                 .and()
-                .formLogin()
+            .formLogin()
                 .defaultSuccessUrl("/")
                 .permitAll()
                 .and()
-                /**
-                 * remember me 설정
-                 */
-                .rememberMe()
+            /**
+             * remember me 설정
+             */
+            .rememberMe()
                 .rememberMeParameter("remember-me")
                 .tokenValiditySeconds(300)
                 .and()
-                /**
-                 * 로그아웃
-                 */
-                .logout()
+            /**
+             * 로그아웃
+             */
+            .logout()
                 .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
                 .logoutSuccessUrl("/")
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
+                .and()
+            /**
+             * HTTP 요청을 HTTPS 요청으로 리다이렉트
+             */
+            .requiresChannel()
+                .anyRequest().requiresSecure()
                 .and().build();
     }
 }
