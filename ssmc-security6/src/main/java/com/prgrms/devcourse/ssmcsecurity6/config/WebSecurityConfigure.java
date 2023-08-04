@@ -5,13 +5,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.access.expression.SecurityExpressionHandler;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -31,11 +35,22 @@ public class WebSecurityConfigure {
                 .password("{noop}user123")
                 .roles("USER").build();
 
-        UserDetails admin = User.builder()
-                .username("admin")
+        UserDetails admin01 = User.builder()
+                .username("admin01")
                 .password("{noop}admin123")
                 .roles("ADMIN").build();
-        return new InMemoryUserDetailsManager(user, admin);
+
+        UserDetails admin02 = User.builder()
+                .username("admin02")
+                .password("{noop}admin123")
+                .roles("ADMIN").build();
+        return new InMemoryUserDetailsManager(user, admin01, admin02);
+    }
+
+    public SecurityExpressionHandler<FilterInvocation> securityExpressionHandler() {
+        return new CustomWebSecurityExpressionHandler(
+                new AuthenticationTrustResolverImpl(),
+                "ROLE_");
     }
 
     @Bean
@@ -56,8 +71,9 @@ public class WebSecurityConfigure {
         return http
                 .authorizeRequests()
                 .antMatchers("/me").hasAnyRole("USER", "ADMIN")
-                .antMatchers("/admin").access("isFullyAuthenticated() and hasRole('ADMIN')")
+                .antMatchers("/admin").access("isFullyAuthenticated() and hasRole('ADMIN') and oddAdmin")
                 .anyRequest().permitAll()
+                .expressionHandler(securityExpressionHandler())
                 .and()
                 .formLogin()
                 .defaultSuccessUrl("/")
@@ -84,6 +100,20 @@ public class WebSecurityConfigure {
                  */
                 .requiresChannel()
                 .anyRequest().requiresSecure()
+                .and().
+                sessionManagement()
+                .sessionFixation().changeSessionId()
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                .invalidSessionUrl("/")
+                .maximumSessions(1)
+                .maxSessionsPreventsLogin(false)
+                .and()
+                .and()
+                /**
+                 * 예외 처리 핸들러
+                 */
+                .exceptionHandling()
+                .accessDeniedHandler(accessDeniedHandler())
                 .and().build();
     }
 
