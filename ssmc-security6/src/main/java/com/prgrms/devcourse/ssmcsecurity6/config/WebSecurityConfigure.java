@@ -75,6 +75,11 @@ public class WebSecurityConfigure {
     @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .antMatcher("/**")
+                .authorizeRequests()
+                .antMatchers("/h2-console/**").permitAll()
+                .and().headers().frameOptions().sameOrigin()
+                .and().csrf().disable()
                 .authorizeRequests()
                 .antMatchers("/me").hasAnyRole("USER", "ADMIN")
                 .antMatchers("/admin").access("isFullyAuthenticated() and hasRole('ADMIN')")
@@ -84,6 +89,8 @@ public class WebSecurityConfigure {
                 .formLogin()
                 .defaultSuccessUrl("/")
                 .permitAll()
+                .and()
+                .httpBasic()
                 .and()
                 /**
                  * remember me 설정
