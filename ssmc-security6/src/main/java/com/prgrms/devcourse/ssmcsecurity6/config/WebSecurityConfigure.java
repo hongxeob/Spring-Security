@@ -13,15 +13,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.expression.WebExpressionVoter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,22 +34,35 @@ public class WebSecurityConfigure {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Bean
-    public InMemoryUserDetailsManager userDetailsService() {
-        UserDetails user = User.builder()
-                .username("user")
-                .password("{noop}user123")
-                .roles("USER").build();
+    public UserDetailsService userDetailsService(DataSource dataSource) {
+        JdbcDaoImpl jdbcDao = new JdbcDaoImpl();
+        jdbcDao.setDataSource(dataSource);
+        // SELECT login_id, passwd, true FROM USERS WHERE login_id = 'user';
+        jdbcDao.setEnableAuthorities(false);
+        jdbcDao.setEnableGroups(true);
+        jdbcDao.setUsersByUsernameQuery(
+                "SELECT " +
+                        "login_id, passwd, true " +
+                        "FROM " +
+                        "users " +
+                        "WHERE " +
+                        "login_id = ?"
+        );
+        jdbcDao.setGroupAuthoritiesByUsernameQuery(
+                "SELECT " +
+                        "u.login_id, g.name, p.name " +
+                        "FROM " +
+                        "users u JOIN groups g ON u.group_id = g.id " +
+                        "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
+                        "JOIN permissions p ON p.id = gp.permission_id " +
+                        "WHERE " +
+                        "u.login_id = ?");
+        return jdbcDao;
+    }
 
-        UserDetails admin01 = User.builder()
-                .username("admin01")
-                .password("{noop}admin123")
-                .roles("ADMIN").build();
-
-        UserDetails admin02 = User.builder()
-                .username("admin02")
-                .password("{noop}admin123")
-                .roles("ADMIN").build();
-        return new InMemoryUserDetailsManager(user, admin01, admin02);
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
