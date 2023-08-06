@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "tables")
+@Table(name = "groups")
 @Getter
 public class Group {
 
