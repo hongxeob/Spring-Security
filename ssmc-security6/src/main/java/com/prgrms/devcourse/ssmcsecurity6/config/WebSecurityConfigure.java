@@ -1,5 +1,6 @@
 package com.prgrms.devcourse.ssmcsecurity6.config;
 
+import com.prgrms.devcourse.ssmcsecurity6.jwt.Jwt;
 import com.prgrms.devcourse.ssmcsecurity6.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -12,7 +13,6 @@ import org.springframework.security.access.AccessDecisionVoter;
 import org.springframework.security.access.vote.UnanimousBased;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -36,12 +36,21 @@ public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final UserService userService;
+    private final JwtConfig jwtConfig;
 
     public AuthenticationManager authenticationManager(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userService).passwordEncoder(passwordEncoder());
         return auth.build();
     }
 
+    @Bean
+    public Jwt jwt() {
+        return new Jwt(
+                jwtConfig.getIssuer(),
+                jwtConfig.getClientSecret(),
+                jwtConfig.getExpirySeconds()
+        );
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -69,6 +78,7 @@ public class WebSecurityConfigure {
                 .build();
     }
 
+
     @Bean
     @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -76,56 +86,32 @@ public class WebSecurityConfigure {
                 .antMatcher("/**")
                 .authorizeRequests()
                 .antMatchers("/h2-console/**").permitAll()
-                .and().headers().frameOptions().sameOrigin()
-                .and().csrf().disable()
+                .and().headers().frameOptions().sameOrigin().disable()
+                .csrf().disable()
                 .authorizeRequests()
-                .antMatchers("/me").hasAnyRole("USER", "ADMIN")
+                .antMatchers("/api/user/me").hasAnyRole("USER", "ADMIN")
                 .antMatchers("/admin").access("isFullyAuthenticated() and hasRole('ADMIN')")
                 .anyRequest().permitAll()
                 .accessDecisionManager(accessDecisionManager())
                 .and()
                 .formLogin()
-                .defaultSuccessUrl("/")
-                .permitAll()
-                .and()
+                .disable()
                 .httpBasic()
-                .and()
-                /**
-                 * remember me 설정
-                 */
+                .disable()
                 .rememberMe()
-                .rememberMeParameter("remember-me")
-                .tokenValiditySeconds(300)
-                .and()
-                /**
-                 * 로그아웃
-                 */
+                .disable()
                 .logout()
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-                .logoutSuccessUrl("/")
-                .invalidateHttpSession(true)
-                .clearAuthentication(true)
-                .and()
-                /**
-                 * HTTP 요청을 HTTPS 요청으로 리다이렉트
-                 */
-                .requiresChannel()
-                .anyRequest().requiresSecure()
-                .and().
-                sessionManagement()
-                .sessionFixation().changeSessionId()
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .invalidSessionUrl("/")
-                .maximumSessions(1)
-                .maxSessionsPreventsLogin(false)
-                .and()
+                .disable()
+                .sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 /**
                  * 예외 처리 핸들러
                  */
                 .exceptionHandling()
                 .accessDeniedHandler(accessDeniedHandler())
-                .and().build();
+                .and()
+                .build();
     }
 
     @Bean
