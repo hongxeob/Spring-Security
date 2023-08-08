@@ -2,7 +2,10 @@ package com.prgrms.devcource.config;
 
 import com.prgrms.devcource.jwt.Jwt;
 import com.prgrms.devcource.jwt.JwtAuthenticationFilter;
+import com.prgrms.devcource.jwt.JwtAuthenticationProvider;
+import com.prgrms.devcource.user.JwtSecurityContextRepository;
 import com.prgrms.devcource.user.UserService;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,22 +23,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.context.SecurityContextPersistenceFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 
 import javax.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final JwtConfigure jwtConfigure;
-
-    public WebSecurityConfigure(JwtConfigure jwtConfigure) {
-        this.jwtConfigure = jwtConfigure;
-    }
 
     @Override
     public void configure(WebSecurity web) {
@@ -70,9 +69,30 @@ public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
         );
     }
 
+    @Bean
+    public JwtAuthenticationProvider jwtAuthenticationProvider(UserService userService, Jwt jwt) {
+        return new JwtAuthenticationProvider(jwt, userService);
+    }
+
+    @Bean
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
+    }
+
+    @Autowired
+    public void configureAuthentication(AuthenticationManagerBuilder builder, JwtAuthenticationProvider authenticationProvider) {
+        builder.authenticationProvider(authenticationProvider);
+    }
+
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         Jwt jwt = getApplicationContext().getBean(Jwt.class);
         return new JwtAuthenticationFilter(jwtConfigure.getHeader(), jwt);
+    }
+
+    public SecurityContextRepository securityContextRepository() {
+        Jwt jwt = getApplicationContext().getBean(Jwt.class);
+        return new JwtSecurityContextRepository(jwtConfigure.getHeader(), jwt);
     }
 
     @Override
@@ -113,11 +133,12 @@ public class WebSecurityConfigure extends WebSecurityConfigurerAdapter {
                  * JwtSecurityContextRepository 설정
                  */
                 .securityContext()
+                .securityContextRepository(securityContextRepository())
                 .and()
         /**
          * jwtAuthenticationFilter 추가
          */
-        .addFilterAfter(jwtAuthenticationFilter(), SecurityContextPersistenceFilter.class)
+        //.addFilterAfter(jwtAuthenticationFilter(), SecurityContextPersistenceFilter.class)
         ;
     }
 
