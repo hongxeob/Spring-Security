@@ -16,8 +16,11 @@ public class JwtConfig {
     private String clientSecret;
 
     private int expirySeconds;
+<<<<<<< HEAD
 
     private String accessToken;
 
     private String refreshToken;
+=======
+>>>>>>> origin/main
 }
