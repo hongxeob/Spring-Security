@@ -1,12 +1,11 @@
 package com.prgrms.devcource.user;
 
 import com.prgrms.devcource.jwt.JwtAuthentication;
-import com.prgrms.devcource.jwt.JwtAuthenticationToken;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RequiredArgsConstructor
 @RestController
@@ -14,28 +13,14 @@ import org.springframework.web.bind.annotation.*;
 public class UserRestController {
 
     private final UserService userService;
-    private final AuthenticationManager authenticationManager;
-
-    @PostMapping("/user/login")
-    public UserDto login(@RequestBody LoginRequest request) {
-        JwtAuthenticationToken authToken = new JwtAuthenticationToken(request.getPrincipal(), request.getCredential());
-
-        Authentication resultToken = authenticationManager.authenticate(authToken);
-
-        JwtAuthenticationToken authenticated = (JwtAuthenticationToken) resultToken;
-        JwtAuthentication principal = (JwtAuthentication) authenticated.getPrincipal();
-        User user = (User) authenticated.getDetails();
-
-        return new UserDto(principal.token, principal.username, user.getGroup().getName());
-    }
 
     @GetMapping("/user/me")
-    public UserDto me(@AuthenticationPrincipal JwtAuthentication jwtAuthentication) {
-        return userService.findByLoginId(jwtAuthentication.username)
+    public UserDto me(@AuthenticationPrincipal JwtAuthentication authentication) {
+        return userService.findByUsername(authentication.username)
                 .map(user -> new UserDto(
-                        jwtAuthentication.token, jwtAuthentication.username, user.getGroup().getName()
+                        authentication.token, authentication.username, user.getGroup().getName()
                 ))
                 .orElseThrow(()
-                        -> new IllegalArgumentException("유저를 찾을 수 없습니다" + jwtAuthentication.username));
+                        -> new IllegalArgumentException("유저를 찾을 수 없습니다" + authentication.username));
     }
 }
